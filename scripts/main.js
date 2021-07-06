@@ -7,8 +7,13 @@ headerCityButton.textContent = localStorage.getItem('lomoda-location') || 'Ва�
 
 headerCityButton.addEventListener('click', () => {
 	const city = prompt('Укажите ваш город');
-	headerCityButton.textContent = city;
-	localStorage.setItem('lomoda-location', city);
+	// проверка введен ли текст
+	console.log(city);
+	if (city.length > 0) {
+		headerCityButton.textContent = city;
+		localStorage.setItem('lomoda-location', city);
+	}
+
 });
 
 const cardOpenModal = () => {
