@@ -1,10 +1,16 @@
 const headerCityButton = document.querySelector('.header__city-button');
 const subheaderCart = document.querySelector('.subheader__cart');
 const cartOverlayModal = document.querySelector('.cart-overlay');
+const cartListGoods = document.querySelector('.cart__list-goods');
+const cartTotalCost = document.querySelector('.cart__total-cost');
 
 let hash = location.hash.substring(1);
 
+// работа с localStorage
 headerCityButton.textContent = localStorage.getItem('lomoda-location') || 'Ваш город?';
+
+const getLocalStorage = () => JSON?.parse(localStorage.getItem('cart-lomoda')) || [];
+const setLocalStorage = data => localStorage.setItem('cart-lomoda', JSON.stringify(data));
 
 // отключение-включение скрола без прыжка
 const disableScroll = () => {
@@ -27,6 +33,7 @@ const enableScroll = () => {
 };
 
 const cardOpenModal = () => {
+	renderCart();
 	cartOverlayModal.classList.add('cart-overlay-open');
 	disableScroll();
 };
@@ -60,14 +67,45 @@ const getGoods = (callback, prop, value) => {
 		});
 };
 
+// рендер Корзины
+const renderCart = () => {
+	cartListGoods.textContent = '';
+
+	const cartItems = getLocalStorage();
+	let totalPrice = 0;
+	cartItems.forEach((item, i) => {
+		const tr = document.createElement('tr');
+		tr.innerHTML = `
+			<td>${i + 1}</td>
+			<td>${item.brand} ${item.name}</td>
+			${item.color ? `<td>${item.color}</td>` : '<td>-</td>'}
+			${item.size ? `<td>${item.size}</td>` : '<td>-</td>'}
+			<td>${item.cost} &#8381;</td>
+			<td><button class="btn-delete" data-id="${item.id}">&times;</button></td>
+		`;
+		totalPrice += item.cost;
+		cartListGoods.append(tr);
+	});
+	cartTotalCost.textContent = totalPrice + ' ₽';
+};
+
+const deleteItemCart = id => {
+	const cartItem = getLocalStorage();
+	const newCartItems = cartItem.filter(item => {
+		console.log(item);
+		return item.id !== id;
+	});
+	setLocalStorage(newCartItems);
+};
+
 // goods
 try {
 	const goodsList = document.querySelector('.goods__list');
+	const goodsTitle = document.querySelector('.goods__title');
 
 	if (!goodsList) {
 		throw 'This is not a goods page!';
 	}
-	const goodsTitle = document.querySelector('.goods__title');
 
 	// ищем ссылки с хэшем и берем текст
 	const changeTitle = () => {
@@ -75,6 +113,7 @@ try {
 	};
 
 	const createCard = ({id, preview, cost, brand, name, sizes}) => {
+
 		const li = document.createElement('li');
 		li.classList.add('goods__item');
 
@@ -119,7 +158,6 @@ try {
 	console.warn(err);
 }
 
-
 // card Good page
 try {
 	if (!document.querySelector('.card-good')) {
@@ -136,13 +174,15 @@ try {
 	const cardGoodColorList = document.querySelector('.card-good__color-list');
 	const cardGoodSizes = document.querySelector('.card-good__sizes');
 	const cardGoodSizesList = document.querySelector('.card-good__sizes-list');
+	const cardGoodBuy = document.querySelector('.card-good__buy');
 
 	//создаем элементы перебором, складываем друг с другом
 	const generateList = data => data.reduce((html, item, i) => html +
 		`<li class="card-good__select-item" data-id="${i}">${item}</li>`, '');
 
-	const renderCardGood = ([{photo, color, sizes, brand, cost, name}]) => {
+	const renderCardGood = ([{id, photo, color, sizes, brand, cost, name}]) => {
 		// const {photo, color, sizes, brand, cost, name} = data[0];
+		const data = {id, cost, brand, name};
 
 		cardGoodImage.src = `goods-image/${photo}`;
 		cardGoodImage.alt = `${brand} ${name}`;
@@ -163,6 +203,31 @@ try {
 		} else {
 			cardGoodSizes.style.display = 'none';
 		}
+
+		if (getLocalStorage().some(item => item.id === id)) {
+			cardGoodBuy.classList.add('delete');
+			cardGoodBuy.textContent = 'Удалить из корзины';
+		}
+
+		// добавление данных в корзину
+		cardGoodBuy.addEventListener('click', () => {
+			if (cardGoodBuy.classList.contains('delete')) {
+				deleteItemCart(id);
+				cardGoodBuy.classList.remove('delete');
+				cardGoodBuy.textContent = 'Добавить в корзину';
+				return;
+			}
+
+			if (color) data.color = cardGoodColor.textContent;
+			if (sizes) data.size = cardGoodSizes.textContent;
+
+			cardGoodBuy.classList.add('delete');
+			cardGoodBuy.textContent = 'Удалить из корзины';
+
+			const cartData = getLocalStorage();
+			cartData.push(data);
+			setLocalStorage(cartData);
+		});
 	};
 
 	cardGoodSelectWrapper.forEach(item => {
@@ -188,6 +253,14 @@ try {
 }
 
 
+cartListGoods.addEventListener('click', ({target}) => {
+	if (target.matches('.btn-delete')) {
+		deleteItemCart(target.dataset.id);
+		renderCart();
+	}
+});
+
+
 headerCityButton.addEventListener('click', () => {
 	const city = prompt('Укажите ваш город');
 	// проверка введен ли текст
@@ -201,7 +274,7 @@ subheaderCart.addEventListener('click', cardOpenModal);
 
 cartOverlayModal.addEventListener('click', event => {
 	const target = event.target;
-	// клик на крестик или на обёртку модалки (matches вместо lassList.contains(''))
+	// клик на крестик или на обёртку корзины (matches вместо lassList.contains(''))
 	if (target.matches('.cart__btn-close') || target.matches('.cart-overlay')) {
 		cardCloseModal();
 	}
